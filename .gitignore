@@ -1,0 +1,7 @@
+loader.txt
+adds
+*.hta
+*.doc*
+adds/*
+tools/*.doc
+tools/*.hta
