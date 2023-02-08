@@ -5,3 +5,6 @@ adds
 adds/*
 tools/*.doc
 tools/*.hta
+*.exe
+*test*
+infra
