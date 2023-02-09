@@ -4,9 +4,6 @@ COPY go.mod ./
 # COPY go.sum ./
 # RUN go mod download
 COPY . .
-RUN go version
-RUN ls
-RUN pwd
-RUN go build
+RUN go build rserver
 EXPOSE 6655
-CMD ["/usr/src/app/rserver", "tcp", "6655" ]
+CMD ["rserver", "tcp", "6655" ]
