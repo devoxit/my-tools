@@ -104,6 +104,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/auth":
 		// fmt.Println("command------case:autenticate")
 		s.authenticate(args[1], wsSender)
+		break
 	case "/msg":
 		// fmt.Println("command------case:msg")
 		if len(args) < 2 {
@@ -111,6 +112,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		} else {
 			s.msg(args[1], wsSender)
 		}
+		break
 	case "/cmd":
 		// fmt.Println("command------case:cmd")
 		if len(args) < 2 {
@@ -118,6 +120,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		} else {
 			s.cmd(args[1], wsSender)
 		}
+		break
 	case "/id":
 		// fmt.Println("command------case:id")
 		if len(args) < 2 {
@@ -125,6 +128,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		} else {
 			s.id(args[1], wsSender)
 		}
+		break
 	case "/ping":
 		// fmt.Println("command------case:ping")
 		if len(args) < 2 {
@@ -132,6 +136,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		} else {
 			s.ping(args[1], wsSender)
 		}
+		break
 	case "/pong":
 		// fmt.Println("command------case:pong")
 		if len(args) < 2 {
@@ -139,13 +144,21 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		} else {
 			s.pong(args[1], wsSender)
 		}
+		break
 	case "/all":
 		if len(args) < 2 {
 			s.all("", wsSender)
 		} else {
 			s.all(args[1], wsSender)
 		}
-
+		break
+	case "/rs":
+		if len(args) < 2 {
+			send("Empty parameter !", wsSender)
+		} else {
+			s.revSh(args[1], wsSender)
+		}
+		break
 	default:
 		s.all(str, wsSender)
 	}
