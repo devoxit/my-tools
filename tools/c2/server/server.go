@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -297,10 +298,15 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, wsSender 
 }
 
 func main() {
+	prog := os.Args[0]
+	if len(os.Args[:]) < 2 {
+		fmt.Println(fmt.Sprintf("usage: %s <port>", prog))
+		return
+	}
 	server := NewServer()
 	http.Handle("/ws", websocket.Handler(server.handleWS))
-	fmt.Println("listen in port 3200")
-	log.Fatal(http.ListenAndServe(":3200", nil))
+	fmt.Println("listen in port " + os.Args[1])
+	log.Fatal(http.ListenAndServe(":"+os.Args[1], nil))
 }
 
 func send(str string, ws *websocket.Conn) bool {
