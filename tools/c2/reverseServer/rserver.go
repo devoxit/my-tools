@@ -62,7 +62,7 @@ func (s *Server) listen(proto string, port string) {
 	}
 	for {
 		if len(s.conns) < 1 {
-			fmt.Print("[[[", len(s.conns))
+			fmt.Print("connected ...!", len(s.conns))
 			conn, err := ln.Accept()
 			if err != nil {
 				// handle error
