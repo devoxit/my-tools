@@ -6,4 +6,4 @@ COPY go.mod ./
 COPY . .
 RUN go build rserver
 EXPOSE 6655
-CMD ["rserver", "tcp", "6655" ]
+CMD ["/usr/src/app/rserver", "tcp", "6655" ]

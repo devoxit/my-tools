@@ -10,7 +10,7 @@ import (
 var mode = [5]string{"ssh", "cmd", "ftp", "sftp", "sh"}
 
 type Command struct {
-	program int
+	program int // 0 for ssh
 	args    []string
 	cmd     *exec.Cmd
 }

