@@ -262,10 +262,15 @@ func (s *Server) id(args string, wsSender *websocket.Conn) {
 
 func (s *Server) rsParser(args string) [5]string {
 	params := strings.SplitN(args, " ", 3)
-	if len(params) < 2 {
+	if len(params) < 4 {
+		fmt.Print("empty params")
+		return [5]string{"", "", "*", "", ""}
+	}
+	if len(params) < 5 {
 		fmt.Print("empty params")
 		return [5]string{params[0], params[1], "*", params[2], params[3]}
 	}
+
 	return [5]string{params[0], params[1], params[2], params[3], params[4]} //agent, shell, ip, ssh user, ssh proxy
 
 }

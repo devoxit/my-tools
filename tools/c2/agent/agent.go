@@ -56,7 +56,7 @@ func getServerInfo() string {
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	fmt.Println(string(body))
-	return string(body)
+	return strings.Trim(string(body), "\n")
 }
 
 func NewPayload() *Payload {
@@ -213,7 +213,7 @@ func main() {
 	agent := NewAgent()
 	origin := "http://" + agent.serverIp
 	url := "ws://" + agent.serverIp + ":" + agent.serverPort + "/ws"
-
+	fmt.Println(url, origin)
 	agent.connect(url, origin)
 }
 
@@ -259,9 +259,9 @@ func (p *Payload) parser(str string) {
 		p.mode = "rs"
 		p.rsParser(args[1])
 		break
-	default:
-		p.mode = "msg"
-		p.msgParser(str)
+		// default:
+		// 	p.mode = "msg"
+		// 	p.msgParser(str)
 	}
 }
 
