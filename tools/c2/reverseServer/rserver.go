@@ -44,6 +44,7 @@ func (s *Server) handleConnection(conn *net.Conn) {
 	stats.writer = bufio.NewWriter(*conn)
 
 	s.conns[conn] = stats
+	s.handleIO(conn)
 }
 
 func (s *Server) handleIO(conn *net.Conn) {
