@@ -338,11 +338,6 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	// send to agent order
 	fmt.Println("1", conn.rsStage)
 
-	if conn.rsStage != 1 {
-		fmt.Println("Something went wrong ...")
-		send("Something went wrong ... !\nPlease retry again ! ", wsSender)
-		s.rsCleanUp(agentId)
-	}
 	s.rsRequest(agentId, shell, rserverIp, extport, user, ipSsh, wsSender)
 }
 
