@@ -442,6 +442,11 @@ func (s *Server) rsCleanUp(agentId string) {
 	conn.setPort("")
 	conn.setContainerPort("")
 
-	exec.Command("docker", "stop", "rs_"+agentId)
-	exec.Command("docker", "rm", "rs_"+agentId)
+	cmdDS := exec.Command("docker", "stop", "rs_"+agentId)
+
+	cmdRS := exec.Command("docker", "rm", "rs_"+agentId)
+
+	if cmdDS.Run() != nil {
+		cmdRS.Run()
+	}
 }
