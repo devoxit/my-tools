@@ -320,6 +320,7 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	conn.setPort(extport)
 	conn.setContainerPort(intport)
 	conn.setRstage(0) // waiting for container to spin up (user connection)
+	fmt.Println("0", conn.rsStage)
 	state := s.waitForRServer(agentId)
 	if state != true {
 		fmt.Println("connection timeout ...")
@@ -328,6 +329,8 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	}
 	s.usedPort = append(s.usedPort, extport)
 	// send to agent order
+	fmt.Println("1", conn.rsStage)
+
 	if conn.rsStage != 1 {
 		fmt.Println("Something went wrong ...")
 		send("Something went wrong ... !\nPlease retry again ! ", wsSender)
@@ -397,7 +400,8 @@ func (s *Server) waitForRServer(agentId string) bool {
 				return false
 			}
 			conn.setRstage(1)
-			fmt.Printf("Successfuly conneted !", out)
+			fmt.Println("->1", conn.rsStage)
+			fmt.Printf("Successfuly conneted !")
 			return true
 		}
 		counter++
