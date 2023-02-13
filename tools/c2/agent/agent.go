@@ -206,7 +206,7 @@ func (a *Agent) handleRs(payload *Payload) {
 	command := "0 -NL " + intport + ":" + params[0] + ":" + params[1] + " " + params[2] + "@" + params[3] + " -i ./key.pem"
 	fmt.Println("---------------", shell, params)
 	connectToRs(command, shell, intport)
-	send("/msg: "+runtime.GOOS+" -> "+payload.from, a.ws)
+	send("/msg: Shell served successfully on "+runtime.GOOS+" -> "+payload.from, a.ws)
 }
 
 func main() {

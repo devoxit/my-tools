@@ -398,7 +398,7 @@ func (s *Server) waitForRServer(agentId string) bool {
 			}
 			conn.setRstage(1)
 			fmt.Printf("Successfuly conneted !", out)
-			break
+			return true
 		}
 		counter++
 		if counter > 30 {
