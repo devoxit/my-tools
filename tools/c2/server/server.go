@@ -450,8 +450,9 @@ func (s *Server) rsCleanUp(agentId string) {
 
 	cmdRS := exec.Command("docker", "rm", "rs_"+agentId)
 
-	if cmdDS.Run() != nil {
-		fmt.Printf("container rs_" + agentId + " stopped !")
-		cmdRS.Run()
-	}
+	cmdDS.Run()
+	fmt.Printf("container rs_" + agentId + " stopped !")
+	cmdRS.Run()
+	fmt.Printf("container rs_" + agentId + " deleted !")
+
 }
