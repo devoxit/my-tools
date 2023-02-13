@@ -391,7 +391,7 @@ func (s *Server) waitForRServer(agentId string) bool {
 		fmt.Print(".")
 		out, err := exec.Command("sudo", "docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
 		fmt.Println(string(out), err)
-		if string(out) == "running\n" {
+		if string(out) == "'running'\n" {
 			conn, err := s.getConnById(agentId)
 			if err != nil {
 				return false
