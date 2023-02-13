@@ -188,6 +188,13 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 			s.revSh(params[0], params[1], params[2], params[3], params[4], wsSender)
 		}
 		break
+	case "/rscls":
+		if len(args) < 2 {
+			send("Empty parameter !", wsSender)
+		} else {
+			s.rsCleanUp(args[1])
+		}
+		break
 	default:
 		s.all(str, wsSender)
 	}
