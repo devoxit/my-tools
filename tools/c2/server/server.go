@@ -399,7 +399,7 @@ func (s *Server) waitForRServer(agentId string) bool {
 			fmt.Print("Timout in " + strconv.Itoa(5-(counter/6)) + " min ...")
 		}
 		fmt.Print(".")
-		out, err := exec.Command("sudo", "docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
+		out, err := exec.Command("docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
 		fmt.Println(string(out), err)
 		if string(out) == "'running'\n" {
 			conn, err := s.getConnById(agentId)
