@@ -310,7 +310,7 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	}
 	image := "devoxit/rserver:latest"
 	// send command to spin a reverse server
-	cmdStr := "docker run -p " + extport + ":" + intport + " --name rs_" + agentId + " -it " + image + " /usr/src/app/rserver tcp " + intport
+	cmdStr := "sudo docker run -p " + extport + ":" + intport + " --name rs_" + agentId + " -it " + image + " /usr/src/app/rserver tcp " + intport
 
 	send("please connect here:\n ssh ubuntu@15.168.53.14 -i tm-red-traning-srv1.pem  \""+cmdStr+"\"", wsSender)
 	conn, err := s.getConnById(agentId)
@@ -386,9 +386,11 @@ func (s *Server) waitForRServer(agentId string) bool {
 	counter := 0
 	for {
 		if counter%6 == 0 {
-			fmt.Println("Timout in " + strconv.Itoa(5-(counter/6)) + " min ...")
+			fmt.Print("Timout in " + strconv.Itoa(5-(counter/6)) + " min ...")
 		}
+		fmt.Print(".")
 		out, _ := exec.Command("docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
+		fmt.Println("\n" + string(out))
 		if string(out) == "running" {
 			conn, err := s.getConnById(agentId)
 			if err != nil {
