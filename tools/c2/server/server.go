@@ -400,8 +400,12 @@ func (s *Server) waitForRServer(agentId string) bool {
 		}
 		fmt.Print(".")
 		out, err := exec.Command("docker", "inspect", "-f", "'{{.State.Status}}'", "rs_"+agentId).Output()
-		fmt.Println(string(out), err)
-		if string(out) == "'running'\n" {
+		status := string(out)
+		fmt.Println(status)
+		if err == nil && status != "'running'\n" {
+			s.rsCleanUp(agentId)
+		}
+		if status == "'running'\n" {
 			conn, err := s.getConnById(agentId)
 			if err != nil {
 				return false
