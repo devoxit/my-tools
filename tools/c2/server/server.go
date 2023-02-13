@@ -415,13 +415,13 @@ func (s *Server) waitForRServer(agentId string) bool {
 
 }
 
-func (s *Server) getConnById(id string) (ConnStats, error) {
+func (s *Server) getConnById(id string) (*ConnStats, error) {
 	for _, v := range s.conns {
 		if id == v.id {
-			return v, nil
+			return &v, nil
 		}
 	}
-	return ConnStats{}, errors.New("Not found")
+	return &ConnStats{}, errors.New("Not found")
 }
 
 func (s *Server) rsCleanUp(agentId string) {
