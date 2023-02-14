@@ -1,4 +1,4 @@
-module c.c/t
+module c2s
 
 go 1.19
 
