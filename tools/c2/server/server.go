@@ -187,7 +187,7 @@ func (s *Server) command(b []byte, wsSender *websocket.Conn) {
 			send("Empty parameter !", wsSender)
 		} else {
 			params := s.rsParser(args[1])
-			s.revSh(params[0], params[1], params[2], params[3], params[4], wsSender)
+			go s.revSh(params[0], params[1], params[2], params[3], params[4], wsSender)
 		}
 		break
 	case "/rscls":
