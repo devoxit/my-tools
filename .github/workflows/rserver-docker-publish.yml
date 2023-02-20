@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./tools/c2/reverseServer/
+        working-directory: ./reverseServer/
     permissions:
       contents: read
       packages: write
